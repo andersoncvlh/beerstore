@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.net.URI;
 import java.util.List;
 
@@ -22,7 +23,7 @@ public class BeerResource {
     }
 
     @PostMapping
-    public ResponseEntity<Beer> create(@RequestBody Beer beer) {
+    public ResponseEntity<Beer> create(@Valid @RequestBody Beer beer) {
         Beer beerSaved = beersRepository.save(beer);
         return ResponseEntity.created(URI.create(beer.getId().toString())).body(beerSaved);
     }
