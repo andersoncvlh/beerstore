@@ -1,5 +1,6 @@
 package com.oak.beerstore.beerstore.config;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.oak.beerstore.beerstore.error.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -24,8 +25,7 @@ import static com.oak.beerstore.beerstore.error.ErrorResponse.ApiError;
 @RequiredArgsConstructor
 public class ApiExceptionHandler {
 
-
-    private static final String GENERAL_ERROR = "GENERAL_ERROR";
+    private static final String MSG_NOT_FOUND = "error-2";
     private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
     private final MessageSource apiErrorMessageSource;
 
@@ -40,18 +40,34 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(ErrorResponse.of(HttpStatus.BAD_REQUEST, apiErrorList));
     }
 
-    private ApiError toApiError(String code, Locale locale) {
+    @ExceptionHandler(InvalidFormatException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidFormatException(InvalidFormatException e, Locale locale) {
+        final String errorCode = "general-invalid-format";
+        final ErrorResponse errorResponse = ErrorResponse.of(HttpStatus.BAD_REQUEST, toApiError(errorCode, locale, e.getValue()));
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e, Locale locale) {
+        LOG.error("Error not expected", e);
+        final String errorCode = "error-1";
+        HttpStatus internalServerError = HttpStatus.INTERNAL_SERVER_ERROR;
+        final ErrorResponse errorResponse = ErrorResponse.of(internalServerError, toApiError(errorCode, locale));
+        return ResponseEntity.status(internalServerError).body(errorResponse);
+    }
+
+    private ApiError toApiError(String code, Locale locale, Object... args) {
         try {
-            return new ApiError(code, apiErrorMessageSource.getMessage(code, null, locale));
+            return new ApiError(code, apiErrorMessageSource.getMessage(code, args, locale));
         } catch (NoSuchMessageException e) {
-            LOG.error("Could not find any message for {} code under {} locale", code, locale);
-            return generalError(locale);
+            return generalError(locale, code, locale.toString());
         }
     }
 
-    private ApiError generalError(Locale locale) {
-        String message = apiErrorMessageSource.getMessage(GENERAL_ERROR, null, locale);
-        return new ApiError(GENERAL_ERROR, message);
+    private ApiError generalError(Locale locale, String... errorCode) {
+        String message = apiErrorMessageSource.getMessage(MSG_NOT_FOUND, errorCode, locale);
+        LOG.error(message);
+        return new ApiError(MSG_NOT_FOUND, message);
     }
 
 
